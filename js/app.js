@@ -5,8 +5,10 @@ let order = [];
 let answers = [];
 let currentIndex = 0;
 let reviewMode = false;
+let resultsFilter = 'all';
 
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
 
 const screens = {
   start: $('#screen-start'),
@@ -23,7 +25,20 @@ function showScreen(name) {
   Object.values(screens).forEach((el) => el.classList.add('hidden'));
   screens[name].classList.remove('hidden');
   $('#progress-bar').classList.toggle('hidden', name !== 'quiz');
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
+
+function getStatus(answer, correctIndex) {
+  if (answer === null) return 'skipped';
+  if (answer === correctIndex) return 'correct';
+  return 'wrong';
+}
+
+const STATUS_LABELS = {
+  correct: 'Верно',
+  wrong: 'Ошибка',
+  skipped: 'Пропущен',
+};
 
 function initTest(shuffle = false) {
   order = questions.map((_, i) => i);
@@ -36,6 +51,7 @@ function initTest(shuffle = false) {
   answers = new Array(questions.length).fill(null);
   currentIndex = 0;
   reviewMode = false;
+  resultsFilter = 'all';
   buildNav();
   renderQuestion();
   showScreen('quiz');
@@ -53,6 +69,7 @@ function buildNav() {
     btn.addEventListener('click', () => {
       currentIndex = i;
       renderQuestion();
+      btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     });
     nav.appendChild(btn);
   });
@@ -63,7 +80,10 @@ function updateNav() {
   for (let i = 0; i < dots.length; i++) {
     dots[i].className = 'nav-dot';
     if (answers[order[i]] !== null) dots[i].classList.add('nav-dot--answered');
-    if (i === currentIndex) dots[i].classList.add('nav-dot--active');
+    if (i === currentIndex) {
+      dots[i].classList.add('nav-dot--active');
+      dots[i].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
   }
 }
 
@@ -82,9 +102,7 @@ function renderQuestion() {
 
   $('#question-number').textContent = `Вопрос ${q.id}`;
   $('#question-text').textContent = q.question;
-
-  const status = $('#question-status');
-  status.textContent = `${currentIndex + 1} из ${questions.length}`;
+  $('#question-status').textContent = `${currentIndex + 1} из ${questions.length}`;
 
   const fieldset = $('#options');
   fieldset.innerHTML = '';
@@ -127,16 +145,95 @@ function renderQuestion() {
   updateProgress();
 }
 
+function buildResultsMap() {
+  const map = $('#results-map');
+  map.innerHTML = '';
+
+  questions.forEach((q, i) => {
+    const status = getStatus(answers[i], q.correctIndex);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `map-cell map-cell--${status}`;
+    btn.textContent = q.id;
+    btn.title = `${STATUS_LABELS[status]}: вопрос ${q.id}`;
+    btn.setAttribute('role', 'listitem');
+    btn.addEventListener('click', () => {
+      setActiveFilter('all');
+      renderResultsBreakdown('all');
+      const el = document.getElementById(`result-q-${q.id}`);
+      if (el) {
+        el.classList.add('result-item--highlight');
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => el.classList.remove('result-item--highlight'), 2000);
+      }
+    });
+    map.appendChild(btn);
+  });
+}
+
+function setActiveFilter(filter) {
+  resultsFilter = filter;
+  $$('.filter-btn').forEach((btn) => {
+    btn.classList.toggle('filter-btn--active', btn.dataset.filter === filter);
+  });
+}
+
+function renderResultsBreakdown(filter = resultsFilter) {
+  const list = $('#results-breakdown');
+  list.innerHTML = '';
+
+  const sorted = questions
+    .map((q, i) => ({ q, i, status: getStatus(answers[i], q.correctIndex) }))
+    .filter(({ status }) => filter === 'all' || status === filter);
+
+  if (!sorted.length) {
+    list.innerHTML = `<p class="breakdown-empty">Нет вопросов в этой категории</p>`;
+    return;
+  }
+
+  sorted.forEach(({ q, i, status }) => {
+    const a = answers[i];
+    const item = document.createElement('article');
+    item.className = `result-item result-item--${status}`;
+    item.id = `result-q-${q.id}`;
+
+    let details = '';
+    if (status === 'wrong') {
+      details = `
+        <p class="result-item__line">Ваш ответ: ${escapeHtml(q.options[a])}</p>
+        <p class="result-item__line">Правильно: <strong>${escapeHtml(q.options[q.correctIndex])}</strong></p>
+      `;
+    } else if (status === 'skipped') {
+      details = `
+        <p class="result-item__line result-item__line--muted">Ответ не выбран</p>
+        <p class="result-item__line">Правильно: <strong>${escapeHtml(q.options[q.correctIndex])}</strong></p>
+      `;
+    } else {
+      details = `<p class="result-item__line">Ответ: <strong>${escapeHtml(q.options[q.correctIndex])}</strong></p>`;
+    }
+
+    item.innerHTML = `
+      <div class="result-item__header">
+        <span class="result-item__num">Вопрос ${q.id}</span>
+        <span class="result-item__badge result-item__badge--${status}">${STATUS_LABELS[status]}</span>
+      </div>
+      <p class="result-item__question">${escapeHtml(q.question)}</p>
+      ${details}
+    `;
+    list.appendChild(item);
+  });
+}
+
 function finishTest() {
   let correct = 0;
   let wrong = 0;
   let skipped = 0;
 
   questions.forEach((q, i) => {
-    const a = answers[i];
-    if (a === null) skipped++;
-    else if (a === q.correctIndex) correct++;
-    else wrong++;
+    const status = getStatus(answers[i], q.correctIndex);
+    if (status === 'correct') correct++;
+    else if (status === 'wrong') wrong++;
+    else skipped++;
   });
 
   const percent = Math.round((correct / questions.length) * 100);
@@ -150,42 +247,16 @@ function finishTest() {
   else if (percent < 90) title = 'Очень хорошо!';
 
   $('#score-title').textContent = title;
-  $('#score-summary').textContent = `${percent}% верных ответов — ${correct} из ${questions.length} вопросов.`;
+  $('#score-summary').textContent = `${percent}% верных — ${correct} из ${questions.length} вопросов.`;
   $('#stat-correct').textContent = correct;
   $('#stat-wrong').textContent = wrong;
   $('#stat-skipped').textContent = skipped;
 
-  $('#review-list').classList.add('hidden');
-  $('#review-list').innerHTML = '';
+  resultsFilter = 'all';
+  setActiveFilter('all');
+  buildResultsMap();
+  renderResultsBreakdown('all');
   showScreen('results');
-}
-
-function showReview() {
-  const list = $('#review-list');
-  list.innerHTML = '';
-  list.classList.remove('hidden');
-
-  questions.forEach((q, i) => {
-    const a = answers[i];
-    if (a === null || a === q.correctIndex) return;
-
-    const item = document.createElement('div');
-    item.className = 'review-item';
-    item.innerHTML = `
-      <div class="review-item__header">
-        <span class="review-item__num">Вопрос ${q.id}</span>
-        <span class="review-item__badge review-item__badge--wrong">Ошибка</span>
-      </div>
-      <p class="review-item__question">${escapeHtml(q.question)}</p>
-      <p class="review-item__answer">Ваш ответ: ${escapeHtml(q.options[a])}</p>
-      <p class="review-item__answer">Правильно: <strong>${escapeHtml(q.options[q.correctIndex])}</strong></p>
-    `;
-    list.appendChild(item);
-  });
-
-  if (!list.children.length) {
-    list.innerHTML = '<p class="card__lead" style="text-align:center">Ошибок нет — молодец!</p>';
-  }
 }
 
 function escapeHtml(str) {
@@ -212,9 +283,15 @@ $('#btn-next').addEventListener('click', () => {
 });
 $('#btn-finish').addEventListener('click', finishTest);
 $('#btn-retry').addEventListener('click', () => showScreen('start'));
-$('#btn-review').addEventListener('click', showReview);
+
+$$('.filter-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    setActiveFilter(btn.dataset.filter);
+    renderResultsBreakdown(btn.dataset.filter);
+  });
+});
 
 loadQuestions().catch(() => {
   document.body.innerHTML =
-    '<p style="padding:2rem;text-align:center">Не удалось загрузить вопросы. Откройте сайт через HTTP-сервер или GitHub Pages.</p>';
+    '<p style="padding:2rem;text-align:center">Не удалось загрузить вопросы.</p>';
 });
