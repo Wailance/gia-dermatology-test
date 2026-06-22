@@ -150,7 +150,7 @@ function finishTest() {
   else if (percent < 90) title = 'Очень хорошо!';
 
   $('#score-title').textContent = title;
-  $('#score-summary').textContent = `Вы ответили правильно на ${correct} из ${questions.length} вопросов.`;
+  $('#score-summary').textContent = `${percent}% верных ответов — ${correct} из ${questions.length} вопросов.`;
   $('#stat-correct').textContent = correct;
   $('#stat-wrong').textContent = wrong;
   $('#stat-skipped').textContent = skipped;
