@@ -2,18 +2,12 @@
   "name": "gia-dermatology-test",
   "version": "1.0.0",
   "description": "Интерактивный тренажёр ГИА по дерматовенерологии",
-  "scripts": {
-    "extract": "node scripts/extract-pdf.mjs",
-    "build:data": "node scripts/parse-pdf.mjs",
-    "serve": "npx serve ."
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
   "scripts": {
-    "extract": "node scripts/extract-pdf.mjs",
-    "build:data": "node scripts/extract-pdf.mjs && node scripts/parse-pdf.mjs"
+    "extract:text": "node scripts/extract-pdf.mjs",
+    "extract:answers": "python3 scripts/extract-answers-from-pdf.py",
+    "build:data": "npm run extract:answers && node scripts/parse-pdf.mjs",
+    "serve": "npx serve ."
   },
   "dependencies": {
     "pdf-parse": "^2.4.5"
