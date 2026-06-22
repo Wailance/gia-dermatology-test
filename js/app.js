@@ -1,11 +1,12 @@
 const LETTERS = 'абвгде';
 const STORAGE_KEY = 'gia-dermatology-test-v1';
+const SETTINGS_KEY = 'gia-dermatology-test-settings';
 
 let questions = [];
 let order = [];
 let answers = [];
 let currentIndex = 0;
-let reviewMode = false;
+let showAnswers = false;
 let resultsFilter = 'all';
 
 const $ = (sel) => document.querySelector(sel);
@@ -17,7 +18,37 @@ const screens = {
   results: $('#screen-results'),
 };
 
-async function loadQuestions() {
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    showAnswers = Boolean(data.showAnswers);
+  } catch {
+    showAnswers = false;
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ showAnswers }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function syncAnswersToggle() {
+  const toggle = $('#toggle-answers');
+  if (toggle) toggle.checked = showAnswers;
+}
+
+function setShowAnswers(enabled) {
+  showAnswers = enabled;
+  saveSettings();
+  syncAnswersToggle();
+  updateNav();
+  renderQuestion();
+}
   const res = await fetch('data/questions.json');
   questions = await res.json();
 }
@@ -99,7 +130,6 @@ function applyProgress(data) {
   order = data.order;
   answers = data.answers;
   currentIndex = Math.min(Math.max(0, data.currentIndex ?? 0), questions.length - 1);
-  reviewMode = false;
   resultsFilter = 'all';
 }
 
@@ -125,6 +155,7 @@ function showScreen(name) {
   Object.values(screens).forEach((el) => el.classList.add('hidden'));
   screens[name].classList.remove('hidden');
   $('#progress-bar').classList.toggle('hidden', name !== 'quiz');
+  if (name === 'quiz') syncAnswersToggle();
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
@@ -151,8 +182,8 @@ function initTest(shuffle = false) {
   }
   answers = new Array(questions.length).fill(null);
   currentIndex = 0;
-  reviewMode = false;
   resultsFilter = 'all';
+  syncAnswersToggle();
   buildNav();
   renderQuestion();
   showScreen('quiz');
@@ -180,8 +211,17 @@ function buildNav() {
 function updateNav() {
   const dots = $('#question-nav').children;
   for (let i = 0; i < dots.length; i++) {
+    const qIdx = order[i];
+    const answer = answers[qIdx];
     dots[i].className = 'nav-dot';
-    if (answers[order[i]] !== null) dots[i].classList.add('nav-dot--answered');
+
+    if (showAnswers && answer !== null) {
+      const status = getStatus(answer, questions[qIdx].correctIndex);
+      dots[i].classList.add(`nav-dot--${status}`);
+    } else if (answer !== null) {
+      dots[i].classList.add('nav-dot--answered');
+    }
+
     if (i === currentIndex) {
       dots[i].classList.add('nav-dot--active');
       dots[i].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
@@ -208,14 +248,13 @@ function renderQuestion() {
 
   const fieldset = $('#options');
   fieldset.innerHTML = '';
-  fieldset.disabled = reviewMode;
 
   q.options.forEach((text, i) => {
     const label = document.createElement('label');
     label.className = 'option';
     if (selected === i) label.classList.add('option--selected');
 
-    if (reviewMode) {
+    if (showAnswers && selected !== null) {
       if (i === q.correctIndex) label.classList.add('option--correct');
       if (selected === i && i !== q.correctIndex) label.classList.add('option--wrong');
     }
@@ -377,6 +416,7 @@ function escapeHtml(str) {
 
 $('#btn-continue').addEventListener('click', () => restoreQuiz());
 $('#btn-view-results').addEventListener('click', () => restoreResults());
+$('#toggle-answers').addEventListener('change', (e) => setShowAnswers(e.target.checked));
 $('#btn-start').addEventListener('click', () => initTest(false));
 $('#btn-shuffle').addEventListener('click', () => initTest(true));
 $('#btn-prev').addEventListener('click', () => {
@@ -406,6 +446,8 @@ $$('.filter-btn').forEach((btn) => {
 
 loadQuestions()
   .then(() => {
+    loadSettings();
+    syncAnswersToggle();
     updateStartScreen();
     const saved = loadProgress();
     if (saved?.screen === 'quiz') {
