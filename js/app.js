@@ -46,9 +46,13 @@ function setShowAnswers(enabled) {
   showAnswers = enabled;
   saveSettings();
   syncAnswersToggle();
-  updateNav();
-  renderQuestion();
+  if (!screens.quiz.classList.contains('hidden')) {
+    updateNav();
+    renderQuestion();
+  }
 }
+
+async function loadQuestions() {
   const res = await fetch('data/questions.json');
   questions = await res.json();
 }
