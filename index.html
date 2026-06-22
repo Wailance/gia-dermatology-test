@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тест по дерматовенерологии — ГИА</title>
+    <meta
+      name="description"
+      content="Интерактивный тренажёр: 100 вопросов по дерматовенерологии для подготовки к ГИА"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="header">
+        <div class="header__inner">
+          <div class="header__brand">
+            <span class="header__icon" aria-hidden="true">🩺</span>
+            <div>
+              <h1 class="header__title">Дерматовенерология</h1>
+              <p class="header__subtitle">Тренажёр ГИА · 100 вопросов</p>
+            </div>
+          </div>
+          <div id="progress-bar" class="progress hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress__track">
+              <div id="progress-fill" class="progress__fill"></div>
+            </div>
+            <span id="progress-text" class="progress__text">0 / 100</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="main">
+        <!-- Start screen -->
+        <section id="screen-start" class="card card--hero">
+          <h2 class="card__title">Подготовка к экзамену</h2>
+          <p class="card__lead">
+            Тест содержит 100 вопросов с одним правильным ответом по дерматовенерологии.
+            После завершения вы увидите результат и разбор ошибок.
+          </p>
+          <ul class="features">
+            <li>Случайный порядок вопросов</li>
+            <li>Можно перейти к любому вопросу</li>
+            <li>Подсветка правильных ответов в конце</li>
+          </ul>
+          <div class="actions">
+            <button id="btn-start" class="btn btn--primary" type="button">Начать тест</button>
+            <button id="btn-shuffle" class="btn btn--ghost" type="button">Начать в случайном порядке</button>
+          </div>
+        </section>
+
+        <!-- Quiz screen -->
+        <section id="screen-quiz" class="hidden">
+          <div class="quiz-layout">
+            <nav id="question-nav" class="question-nav" aria-label="Навигация по вопросам"></nav>
+            <article class="card card--question">
+              <div class="question-meta">
+                <span id="question-number" class="question-meta__num">Вопрос 1</span>
+                <span id="question-status" class="question-meta__status"></span>
+              </div>
+              <h2 id="question-text" class="question-text"></h2>
+              <fieldset id="options" class="options"></fieldset>
+              <div class="quiz-actions">
+                <button id="btn-prev" class="btn btn--ghost" type="button">← Назад</button>
+                <button id="btn-next" class="btn btn--primary" type="button">Далее →</button>
+              </div>
+              <button id="btn-finish" class="btn btn--accent hidden" type="button">Завершить тест</button>
+            </article>
+          </div>
+        </section>
+
+        <!-- Results screen -->
+        <section id="screen-results" class="hidden">
+          <div class="card card--results">
+            <div id="score-circle" class="score-circle">
+              <span id="score-percent" class="score-circle__value">0%</span>
+              <span class="score-circle__label">результат</span>
+            </div>
+            <h2 id="score-title" class="card__title">Тест завершён</h2>
+            <p id="score-summary" class="card__lead"></p>
+            <div class="score-stats">
+              <div class="stat">
+                <span id="stat-correct" class="stat__value">0</span>
+                <span class="stat__label">верно</span>
+              </div>
+              <div class="stat">
+                <span id="stat-wrong" class="stat__value">0</span>
+                <span class="stat__label">ошибок</span>
+              </div>
+              <div class="stat">
+                <span id="stat-skipped" class="stat__value">0</span>
+                <span class="stat__label">пропущено</span>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="btn-retry" class="btn btn--primary" type="button">Пройти снова</button>
+              <button id="btn-review" class="btn btn--ghost" type="button">Разбор ошибок</button>
+            </div>
+          </div>
+          <div id="review-list" class="review-list hidden"></div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>Тренажёр на основе теста ГИА по дерматовенерологии</p>
+      </footer>
+    </div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
