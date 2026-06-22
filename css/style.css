@@ -149,6 +149,17 @@ body {
   font-size: 0.9375rem;
 }
 
+.saved-hint {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: rgba(59, 158, 255, 0.12);
+  border: 1px solid rgba(59, 158, 255, 0.35);
+  color: var(--text);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
 .features {
   list-style: none;
   padding: 0;

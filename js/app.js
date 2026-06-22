@@ -1,4 +1,5 @@
 const LETTERS = 'абвгде';
+const STORAGE_KEY = 'gia-dermatology-test-v1';
 
 let questions = [];
 let order = [];
@@ -21,6 +22,105 @@ async function loadQuestions() {
   questions = await res.json();
 }
 
+function saveProgress(screen = 'quiz') {
+  try {
+    const payload = {
+      version: 1,
+      questionCount: questions.length,
+      screen,
+      order,
+      answers,
+      currentIndex,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data.version !== 1 || data.questionCount !== questions.length) return null;
+    if (!Array.isArray(data.order) || data.order.length !== questions.length) return null;
+    if (!Array.isArray(data.answers) || data.answers.length !== questions.length) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function clearProgress() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  updateStartScreen();
+}
+
+function updateStartScreen() {
+  const saved = loadProgress();
+  const hint = $('#saved-progress-hint');
+  const btnContinue = $('#btn-continue');
+  const btnViewResults = $('#btn-view-results');
+  const btnStart = $('#btn-start');
+
+  if (!saved) {
+    hint.classList.add('hidden');
+    btnContinue.classList.add('hidden');
+    btnViewResults.classList.add('hidden');
+    btnStart.textContent = 'Начать тест';
+    return;
+  }
+
+  const answered = saved.answers.filter((a) => a !== null).length;
+
+  if (saved.screen === 'results') {
+    hint.textContent = 'Последний тест завершён. Можно посмотреть результаты или начать заново.';
+    hint.classList.remove('hidden');
+    btnContinue.classList.add('hidden');
+    btnViewResults.classList.remove('hidden');
+    btnStart.textContent = 'Начать заново';
+    return;
+  }
+
+  hint.textContent = `Сохранённый прогресс: отвечено ${answered} из ${questions.length} вопросов.`;
+  hint.classList.remove('hidden');
+  btnContinue.classList.remove('hidden');
+  btnViewResults.classList.add('hidden');
+  btnStart.textContent = 'Начать заново';
+}
+
+function applyProgress(data) {
+  order = data.order;
+  answers = data.answers;
+  currentIndex = Math.min(Math.max(0, data.currentIndex ?? 0), questions.length - 1);
+  reviewMode = false;
+  resultsFilter = 'all';
+}
+
+function restoreQuiz() {
+  const saved = loadProgress();
+  if (!saved || saved.screen === 'results') return false;
+  applyProgress(saved);
+  buildNav();
+  renderQuestion();
+  showScreen('quiz');
+  return true;
+}
+
+function restoreResults() {
+  const saved = loadProgress();
+  if (!saved || saved.screen !== 'results') return false;
+  applyProgress(saved);
+  showResults(false);
+  return true;
+}
+
 function showScreen(name) {
   Object.values(screens).forEach((el) => el.classList.add('hidden'));
   screens[name].classList.remove('hidden');
@@ -41,6 +141,7 @@ const STATUS_LABELS = {
 };
 
 function initTest(shuffle = false) {
+  clearProgress();
   order = questions.map((_, i) => i);
   if (shuffle) {
     for (let i = order.length - 1; i > 0; i--) {
@@ -55,6 +156,7 @@ function initTest(shuffle = false) {
   buildNav();
   renderQuestion();
   showScreen('quiz');
+  saveProgress('quiz');
 }
 
 function buildNav() {
@@ -143,6 +245,7 @@ function renderQuestion() {
 
   updateNav();
   updateProgress();
+  saveProgress('quiz');
 }
 
 function buildResultsMap() {
@@ -224,7 +327,7 @@ function renderResultsBreakdown(filter = resultsFilter) {
   });
 }
 
-function finishTest() {
+function showResults(persist = true) {
   let correct = 0;
   let wrong = 0;
   let skipped = 0;
@@ -257,6 +360,11 @@ function finishTest() {
   buildResultsMap();
   renderResultsBreakdown('all');
   showScreen('results');
+  if (persist) saveProgress('results');
+}
+
+function finishTest() {
+  showResults(true);
 }
 
 function escapeHtml(str) {
@@ -267,6 +375,8 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+$('#btn-continue').addEventListener('click', () => restoreQuiz());
+$('#btn-view-results').addEventListener('click', () => restoreResults());
 $('#btn-start').addEventListener('click', () => initTest(false));
 $('#btn-shuffle').addEventListener('click', () => initTest(true));
 $('#btn-prev').addEventListener('click', () => {
@@ -282,7 +392,10 @@ $('#btn-next').addEventListener('click', () => {
   }
 });
 $('#btn-finish').addEventListener('click', finishTest);
-$('#btn-retry').addEventListener('click', () => showScreen('start'));
+$('#btn-retry').addEventListener('click', () => {
+  clearProgress();
+  showScreen('start');
+});
 
 $$('.filter-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -291,7 +404,15 @@ $$('.filter-btn').forEach((btn) => {
   });
 });
 
-loadQuestions().catch(() => {
-  document.body.innerHTML =
-    '<p style="padding:2rem;text-align:center">Не удалось загрузить вопросы.</p>';
-});
+loadQuestions()
+  .then(() => {
+    updateStartScreen();
+    const saved = loadProgress();
+    if (saved?.screen === 'quiz') {
+      restoreQuiz();
+    }
+  })
+  .catch(() => {
+    document.body.innerHTML =
+      '<p style="padding:2rem;text-align:center">Не удалось загрузить вопросы.</p>';
+  });
