@@ -2,6 +2,8 @@ const LETTERS = 'абвгде';
 const STORAGE_KEY = 'gia-dermatology-test-v1';
 const SETTINGS_KEY = 'gia-dermatology-test-settings';
 
+const BUILD_VERSION = new URL(import.meta.url).searchParams.get('v') ?? '1';
+
 let questions = [];
 let order = [];
 let answers = [];
@@ -53,7 +55,7 @@ function setShowAnswers(enabled) {
 }
 
 async function loadQuestions() {
-  const res = await fetch('data/questions.json');
+  const res = await fetch(`data/questions.json?v=${BUILD_VERSION}`, { cache: 'no-store' });
   questions = await res.json();
 }
 
